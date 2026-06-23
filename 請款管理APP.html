@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>請款管理系統</title>
+<style>
+  :root {
+    --ink: #1a1f2e;
+    --ink2: #3d4460;
+    --muted: #8a92a8;
+    --border: #e2e6f0;
+    --bg: #f5f7fb;
+    --card: #ffffff;
+    --accent: #2563eb;
+    --accent2: #1d4ed8;
+    --green: #059669;
+    --orange: #d97706;
+    --red: #dc2626;
+    --tag-a: #dbeafe; --tag-at: #1d4ed8;
+    --tag-b: #dcfce7; --tag-bt: #15803d;
+    --tag-c: #fef3c7; --tag-ct: #92400e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; }
+
+  /* Header */
+  .header { background: var(--ink); color: #fff; padding: 16px 20px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; }
+  .header-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .header h1 { font-size: 16px; font-weight: 700; letter-spacing: .5px; }
+  .header-sub { font-size: 11px; color: #8a9bb8; margin-top: 2px; }
+
+  /* Summary cards */
+  .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px; }
+  @media(max-width:700px){ .summary { grid-template-columns: repeat(2,1fr); } }
+  .card { background: var(--card); border-radius: 12px; padding: 14px 16px; border: 1px solid var(--border); }
+  .card-label { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .card-value { font-size: 22px; font-weight: 800; color: var(--ink); margin-top: 4px; line-height: 1; }
+  .card-value.accent { color: var(--accent); }
+  .card-value.green { color: var(--green); }
+  .card-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; padding: 0 16px 12px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab { padding: 7px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1.5px solid transparent; white-space: nowrap; transition: all .15s; }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tab:not(.active) { color: var(--ink2); border-color: var(--border); background: var(--card); }
+  .tab:not(.active):hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Filters */
+  .filters { display: flex; gap: 8px; padding: 12px 16px; flex-wrap: wrap; align-items: center; }
+  .filter-select, .filter-input { padding: 7px 12px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; background: var(--card); color: var(--ink); outline: none; }
+  .filter-select:focus, .filter-input:focus { border-color: var(--accent); }
+  .filter-input { flex: 1; min-width: 160px; }
+  .filter-label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .result-count { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; padding: 0 16px 16px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  th { background: #f0f3fa; color: var(--ink2); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { color: var(--accent); }
+  th .sort-icon { margin-left: 4px; opacity: .4; }
+  th.sorted .sort-icon { opacity: 1; color: var(--accent); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #f8faff; }
+  .col-month { white-space: nowrap; font-weight: 600; color: var(--ink2); }
+  .col-vendor { font-weight: 600; max-width: 140px; }
+  .col-location { font-size: 12px; color: var(--ink2); max-width: 200px; line-height: 1.5; }
+  .col-amount { font-weight: 700; text-align: right; white-space: nowrap; }
+  .col-invoice { font-size: 11px; color: var(--muted); font-family: monospace; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+  .tag-信帆 { background: var(--tag-a); color: var(--tag-at); }
+  .tag-元上億 { background: var(--tag-b); color: var(--tag-bt); }
+  .tag-優美佳 { background: var(--tag-c); color: var(--tag-ct); }
+  .expand-btn { background: none; border: 1.5px solid var(--border); border-radius: 6px; padding: 3px 8px; font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; }
+  .expand-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .detail-row td { background: #f8faff; padding: 0; }
+  .detail-inner { padding: 10px 16px 12px; border-top: 1px dashed var(--border); }
+  .detail-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .detail-table th { background: transparent; font-size: 10px; padding: 4px 8px; }
+  .detail-table td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+  .detail-table tr:last-child td { border-bottom: none; }
+  .no-data { text-align: center; padding: 40px; color: var(--muted); }
+
+  /* Stats panels */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 0 16px 16px; }
+  @media(max-width:600px){ .stats-grid { grid-template-columns: 1fr; } }
+  .stat-card { background: var(--card); border-radius: 12px; padding: 16px; border: 1px solid var(--border); }
+  .stat-card h3 { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 12px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .bar-label { font-size: 12px; color: var(--ink2); min-width: 100px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .bar-track { flex: 1; height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; background: var(--accent); transition: width .4s; }
+  .bar-val { font-size: 12px; font-weight: 700; color: var(--ink); min-width: 70px; text-align: right; }
+  .month-row { display: grid; grid-template-columns: 80px 1fr 80px; align-items: center; gap: 8px; margin-bottom: 8px; }
+
+  /* Totals footer */
+  .footer-total { display: flex; justify-content: flex-end; gap: 24px; padding: 12px 28px; background: #f0f3fa; border-top: 1px solid var(--border); font-size: 13px; }
+  .footer-total span { color: var(--muted); }
+  .footer-total strong { color: var(--ink); }
+
+  .hidden { display: none !important; }
+  .section { display: none; }
+  .section.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">📋</div>
+  <div>
+    <h1>請款管理系統</h1>
+    <div class="header-sub">標線工程 · 請款統計管理</div>
+  </div>
+</div>
+
+<div class="summary" id="summaryCards"></div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('list')">📄 請款明細</div>
+  <div class="tab" onclick="switchTab('stats')">📊 統計分析</div>
+</div>
+
+<div id="listSection" class="section active">
+  <div class="filters">
+    <span class="filter-label">月份</span>
+    <select class="filter-select" id="filterMonth" onchange="applyFilter()">
+      <option value="">全部</option>
+    </select>
+    <span class="filter-label">開立公司</span>
+    <select class="filter-select" id="filterCompany" onchange="applyFilter()">
+      <option value="">全部</option>
+      <option>信帆</option>
+      <option>元上億</option>
+      <option>優美佳</option>
+    </select>
+    <input class="filter-input" type="text" id="filterSearch" placeholder="🔍 搜尋廠商、地點..." oninput="applyFilter()">
+    <span class="result-count" id="resultCount"></span>
+  </div>
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th onclick="sortBy('月份')">月份 <span class="sort-icon">↕</span></th>
+          <th onclick="sortBy('廠商')">廠商名稱 <span class="sort-icon">↕</span></th>
+          <th>施工地點</th>
+          <th>開立公司</th>
+          <th onclick="sortBy('總金額')" style="text-align:right">總金額 <span class="sort-icon">↕</span></th>
+          <th>發票號碼</th>
+          <th>明細</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+  <div class="footer-total" id="footerTotal"></div>
+</div>
+
+<div id="statsSection" class="section">
+  <div class="stats-grid" id="statsGrid"></div>
+</div>
+
+<script>
+const RAW = [{"月份":"115年05月","廠商":"三多利","施工地點":"東區東英十街","總金額":34800,"發票號碼":"","開立公司":"信帆","明細":[{"項目":"汽車格（不含編號）","單位":"格","數量":60.0,"單價":500.0,"金額":30000.0,"備註":""},{"項目":"箭頭（5m）","單位":"支","數量":4.0,"單價":1200.0,"金額":4800.0,"備註":""}]},{"月份":"115年05月","廠商":"偉銓工程行","施工地點":"北區漢口路235號、237號、西屯區台灣大道四段1230號","總金額":7386,"發票號碼":"115/05/25 BS05217051","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m","數量":190.1,"單價":37.0,"金額":7033.7,"備註":""}]},{"月份":"115年06月","廠商":"冠僖工程有限公司","施工地點":"3、4月管線","總金額":170048,"發票號碼":"115/05/25 BS05217060","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m","數量":4220.0,"單價":35.0,"金額":147700.0,"備註":""},{"項目":"綠色熱拌標線","單位":"m²","數量":28.5,"單價":500.0,"金額":14250.0,"備註":""}]},{"月份":"115年03月","廠商":"冠僖工程有限公司","施工地點":"3月管線","總金額":1075333,"發票號碼":"115/03/25 XV46501700","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m","數量":26056.35,"單價":35.0,"金額":911972.25,"備註":""},{"項目":"綠色熱拌標線","單位":"m²","數量":231.71,"單價":500.0,"金額":115855.0,"備註":""},{"項目":"噴漆標線","單位":"m","數量":230.0,"單價":30.0,"金額":6900.0,"備註":""},{"項目":"自行車貼片（長）","單位":"片","數量":4.0,"單價":4500.0,"金額":18000.0,"備註":""},{"項目":"回復柱安裝工資","單位":"支","數量":5.0,"單價":300.0,"金額":1500.0,"備註":""}]},{"月份":"115年06月","廠商":"冠僖工程有限公司","施工地點":"5月管線","總金額":1033505,"發票號碼":"115/05/25 BS05217061","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m","數量":19670.0,"單價":37.0,"金額":727790.0,"備註":""},{"項目":"綠色熱拌標線","單位":"m²","數量":505.0,"單價":500.0,"金額":252500.0,"備註":""},{"項目":"機慢車停放區字樣","單位":"組","數量":4.0,"單價":700.0,"金額":2800.0,"備註":""},{"項目":"小箭頭","單位":"支","數量":4.0,"單價":300.0,"金額":1200.0,"備註":""}]},{"月份":"115年03月","廠商":"冠僖工程有限公司","施工地點":"彰化縣芬園鄉大彰路四段(仁愛路二段至李舍咖啡)","總金額":1127385,"發票號碼":"115/03/25 XV46501701","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m","數量":9600.0,"單價":35.0,"金額":336000.0,"備註":""},{"項目":"藍色熱拌標線","單位":"m²","數量":66.0,"單價":500.0,"金額":33000.0,"備註":""},{"項目":"自行車貼片（20cm*90cm）","單位":"片","數量":34.0,"單價":3000.0,"金額":102000.0,"備註":""},{"項目":"慢字貼片","單位":"片","數量":6.0,"單價":24000.0,"金額":144000.0,"備註":""},{"項目":"限速50貼片","單位":"片","數量":5.0,"單價":15000.0,"金額":75000.0,"備註":""},{"項目":"限速40貼片","單位":"片","數量":2.0,"單價":15000.0,"金額":30000.0,"備註":""},{"項目":"貓眼（黃色）","單位":"顆","數量":1179.0,"單價":300.0,"金額":353700.0,"備註":""}]},{"月份":"115年03月","廠商":"臺中市東區臺中國民小學","施工地點":"東區台中路153號","總金額":30692,"發票號碼":"115/03/30 XV46501653","開立公司":"優美佳","明細":[{"項目":"熱拌標線","單位":"m","數量":127.6,"單價":50.0,"金額":6380.0,"備註":""},{"項目":"綠色熱拌標線","單位":"m²","數量":11.0,"單價":600.0,"金額":6600.0,"備註":""},{"項目":"汽車格（不含編號）","單位":"格","數量":5.0,"單價":500.0,"金額":2500.0,"備註":""},{"項目":"機車格（不含編號）","單位":"格","數量":35.0,"單價":350.0,"金額":12250.0,"備註":""},{"項目":"標準身障車格","單位":"格","數量":1.0,"單價":1500.0,"金額":1500.0,"備註":""}]},{"月份":"115年05月","廠商":"威震工程行","施工地點":"南屯區文心南五路二段","總金額":10500,"發票號碼":"115/05/25 BH32884708","開立公司":"信帆","明細":[{"項目":"標線劃設","單位":"式","數量":1.0,"單價":10000.0,"金額":10000.0,"備註":""}]},{"月份":"115年05月","廠商":"廖先生","施工地點":"大里區立仁里新仁路一段22號","總金額":10000,"發票號碼":"","開立公司":"信帆","明細":[{"項目":"停車場劃設","單位":"式","數量":1.0,"單價":10000.0,"金額":10000.0,"備註":""}]},{"月份":"115年05月","廠商":"弘益土木包工業","施工地點":"","總金額":1260,"發票號碼":"115/05/12 BH32884703","開立公司":"信帆","明細":[{"項目":"成型標線（紅色10cm）","單位":"m","數量":10.0,"單價":120.0,"金額":1200.0,"備註":""}]},{"月份":"115年05月","廠商":"德勝營造有限公司","施工地點":"115年奧萬大遊樂區設施災害搶修及維護工程","總金額":47250,"發票號碼":"115/05/29 BS05217062","開立公司":"元上億","明細":[{"項目":"停車格劃設","單位":"式","數量":1.0,"單價":45000.0,"金額":45000.0,"備註":""}]},{"月份":"115年03月","廠商":"慶裕成營造有限公司","施工地點":"1.大雅區學府路278號(大雅炸雞旁)\n2.西屯區福星路204號\n3.益民路二段453號各巷口","總金額":69905,"發票號碼":"115/03/26 ZP09867002","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":194.55,"單價":320.0,"金額":62256.0,"備註":""},{"項目":"原有標線刨除","單位":"m²","數量":10.8,"單價":400.0,"金額":4320.0,"備註":""}]},{"月份":"115年05月","廠商":"敦鴻營造股份有限公司","施工地點":"北屯區崇德十路一段250至258號","總金額":10500,"發票號碼":"115/05/18 BH32884706","開立公司":"信帆","明細":[{"項目":"標線劃設","單位":"式","數量":1.0,"單價":10000.0,"金額":10000.0,"備註":""}]},{"月份":"115年03月","廠商":"旭益汽車實業股份有限公司","施工地點":"西屯區福科路139號","總金額":17010,"發票號碼":"115/03/12 ZE12802652","開立公司":"信帆","明細":[{"項目":"汽車格（不含編號）","單位":"格","數量":27.0,"單價":600.0,"金額":16200.0,"備註":""}]},{"月份":"115年03月","廠商":"明匠工程有限公司","施工地點":"南屯區龍富路五段28號","總金額":9450,"發票號碼":"115/03/25 ZE12802657","開立公司":"信帆","明細":[{"項目":"標線劃設","單位":"式","數量":1.0,"單價":9000.0,"金額":9000.0,"備註":""}]},{"月份":"115年05月","廠商":"梁興營造有限公司","施工地點":"太平區束汴里頭汴坑4975比號災修復建工程","總金額":10500,"發票號碼":"115/05/15 BH32884705","開立公司":"信帆","明細":[{"項目":"標線劃設","單位":"式","數量":1.0,"單價":10000.0,"金額":10000.0,"備註":""}]},{"月份":"115年05月","廠商":"欣群營造有限公司","施工地點":"員林市莒光路581號、485號","總金額":12704,"發票號碼":"115/05/25 BS05217055","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":32.7,"單價":370.0,"金額":12099.0,"備註":""}]},{"月份":"115年05月","廠商":"欣群營造有限公司","施工地點":"草屯鎮信義街&忠孝街、草屯鎮忠孝街400號前","總金額":105307,"發票號碼":"115/05/25 BS05217054","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":271.06,"單價":370.0,"金額":100292.2,"備註":""}]},{"月份":"115年03月","廠商":"欣群營造有限公司","施工地點":"草屯鎮民生路(太平路一段至新生路)、草屯鎮太平路一段492號-補畫","總金額":46658,"發票號碼":"115/03/25 ZP09867001","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":126.96,"單價":350.0,"金額":44436.0,"備註":""}]},{"月份":"115年05月","廠商":"欣群營造有限公司","施工地點":"草屯鎮石川路46-50號","總金額":389,"發票號碼":"115/05/25 BS05217053","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":1.0,"單價":370.0,"金額":370.0,"備註":""}]},{"月份":"115年03月","廠商":"永吉昌商行","施工地點":"太平區樹德路275號","總金額":10500,"發票號碼":"115/03/10 ZE12802651","開立公司":"信帆","明細":[{"項目":"標線劃設","單位":"式","數量":1.0,"單價":10000.0,"金額":10000.0,"備註":""}]},{"月份":"115年03月","廠商":"永進土木包工業","施工地點":"台中市大甲區甲農段628地號新建巡水通道工程、大甲區甲東路520號(東陽國小旁)","總金額":114471,"發票號碼":"115/03/25 XV46501652","開立公司":"優美佳","明細":[{"項目":"二型標線","單位":"m²","數量":237.0,"單價":460.0,"金額":109020.0,"備註":""}]},{"月份":"115年05月","廠商":"河北停車場有限公司","施工地點":"北區五常街233-251號-五常站","總金額":16800,"發票號碼":"115/05/08 BH32884701","開立公司":"信帆","明細":[{"項目":"汽車格（含編號）","單位":"格","數量":18.0,"單價":500.0,"金額":9000.0,"備註":""},{"項目":"標準身障車格","單位":"格","數量":1.0,"單價":1200.0,"金額":1200.0,"備註":""},{"項目":"熱拌字樣（人行道）","單位":"組","數量":2.0,"單價":900.0,"金額":1800.0,"備註":""}]},{"月份":"115年05月","廠商":"河北停車場有限公司","施工地點":"南屯區五權西路二段168號、豐原區西勢路232巷35號","總金額":36435,"發票號碼":"115/05/27 BH32884710","開立公司":"信帆","明細":[{"項目":"汽車格（含編號）","單位":"格","數量":7.0,"單價":500.0,"金額":3500.0,"備註":""},{"項目":"標準身障車格","單位":"格","數量":1.0,"單價":1200.0,"金額":1200.0,"備註":""},{"項目":"汽車格（含編號）","單位":"格","數量":60.0,"單價":500.0,"金額":30000.0,"備註":""}]},{"月份":"115年03月","廠商":"河北停車場有限公司","施工地點":"南屯區文心南三路530巷17號","總金額":16319,"發票號碼":"115/03/20 ZE12802655","開立公司":"信帆","明細":[{"項目":"汽車格（含編號）","單位":"格","數量":21.0,"單價":450.0,"金額":9450.0,"備註":""},{"項目":"標準身障車格","單位":"格","數量":1.0,"單價":1200.0,"金額":1200.0,"備註":""},{"項目":"熱拌字樣（人行道）","單位":"組","數量":2.0,"單價":900.0,"金額":1800.0,"備註":""}]},{"月份":"115年03月","廠商":"湛鉅土木包工業","施工地點":"精武路進化路(軍營)、振聲電台路上(軍營)","總金額":38812,"發票號碼":"115/03/26 ZP09867003","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":8.4,"單價":350.0,"金額":2940.0,"備註":""},{"項目":"原有標線刨除","單位":"m²","數量":9.31,"單價":400.0,"金額":3724.0,"備註":""},{"項目":"熱拌字樣","單位":"字","數量":24.0,"單價":600.0,"金額":14400.0,"備註":""},{"項目":"汽車格（不含編號）","單位":"格","數量":19.0,"單價":450.0,"金額":8550.0,"備註":""},{"項目":"機車格（不含編號）","單位":"格","數量":21.0,"單價":350.0,"金額":7350.0,"備註":""}]},{"月份":"115年03月","廠商":"禾銘營造有限公司","施工地點":"大甲區甲東路520號(東陽國小旁)","總金額":1072,"發票號碼":"115/03/25 XV46501651","開立公司":"優美佳","明細":[{"項目":"二型標線","單位":"m²","數量":2.22,"單價":460.0,"金額":1021.2,"備註":""}]},{"月份":"115年03月","廠商":"荷豐營造有限公司","施工地點":"龍井區沙田路四段670巷打通至竹師路二段111巷開闢工程","總金額":77688,"發票號碼":"115/03/30 ZP09867008","開立公司":"元上億","明細":[{"項目":"二型標線","單位":"m²","數量":160.845,"單價":460.0,"金額":73988.7,"備註":""}]},{"月份":"115年03月","廠商":"連吉綜合工程有限公司","施工地點":"彰化#50978、彰化#51018、#51468、#51588、#51608、#51808","總金額":76455,"發票號碼":"115/03/30 ZP09867006","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":208.04,"單價":350.0,"金額":72814.0,"備註":""}]},{"月份":"115年05月","廠商":"連吉綜合工程有限公司","施工地點":"彰化多個工地（#50908、#50068等）","總金額":558698,"發票號碼":"115/05/25 BS05217057","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":1438.09,"單價":370.0,"金額":532093.3,"備註":""}]},{"月份":"115年03月","廠商":"連吉綜合工程有限公司","施工地點":"彰化#彰擴310(P1~P2)-第二次施工","總金額":132413,"發票號碼":"115/03/30 ZP09867007","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":311.155,"單價":350.0,"金額":108904.25,"備註":""},{"項目":"綠色熱拌標線","單位":"m²","數量":37.4,"單價":460.0,"金額":17204.0,"備註":""}]},{"月份":"115年05月","廠商":"里萬瀝青企業有限公司","施工地點":"大里區大明路","總金額":10500,"發票號碼":"115/05/25 BH32884709","開立公司":"信帆","明細":[{"項目":"標線劃設","單位":"式","數量":1.0,"單價":10000.0,"金額":10000.0,"備註":""}]},{"月份":"115年03月","廠商":"里萬瀝青企業有限公司","施工地點":"沙鹿區南斗路342號前","總金額":10500,"發票號碼":"115/03/25 ZE12802656","開立公司":"信帆","明細":[{"項目":"標線劃設","單位":"式","數量":1.0,"單價":10000.0,"金額":10000.0,"備註":""}]},{"月份":"115年03月","廠商":"長洰營造有限公司","施工地點":"草屯鎮和興街69-55號","總金額":3150,"發票號碼":"115/03/26 ZP09867004","開立公司":"元上億","明細":[{"項目":"標線劃設","單位":"式","數量":1.0,"單價":3000.0,"金額":3000.0,"備註":""}]},{"月份":"115年03月","廠商":"長洲營造有限公司","施工地點":"南投縣草屯鎮番子田路、東山路等道路改善工程","總金額":181968,"發票號碼":"115/03/27 ZP09867005","開立公司":"元上億","明細":[{"項目":"熱拌標線","單位":"m²","數量":290.865,"單價":350.0,"金額":101802.75,"備註":""},{"項目":"反光波浪板","單位":"片","數量":110.0,"單價":650.0,"金額":71500.0,"備註":""}]},{"月份":"115年05月","廠商":"長洲營造有限公司","施工地點":"農投草8農路0k+280~1k改善工程、草屯鎮碧興路一段與碧峰路口","總金額":7440,"發票號碼":"115/05/25 ZX46431750","開立公司":"優美佳","明細":[{"項目":"熱拌標線","單位":"m²","數量":19.15,"單價":370.0,"金額":7085.5,"備註":""}]},{"月份":"115年03月","廠商":"魚中魚樂活有限公司清水分公司","施工地點":"清水區民享路75號","總金額":40898,"發票號碼":"115/03/09 ZE12802650","開立公司":"信帆","明細":[{"項目":"汽車格（不含編號）","單位":"格","數量":13.0,"單價":500.0,"金額":6500.0,"備註":""},{"項目":"機車格（不含編號）","單位":"格","數量":27.0,"單價":350.0,"金額":9450.0,"備註":""},{"項目":"熱拌字樣（出口、入口/2字一組）","單位":"組","數量":2.0,"單價":1500.0,"金額":3000.0,"備註":""},{"項目":"箭頭","單位":"支","數量":2.0,"單價":1500.0,"金額":3000.0,"備註":""},{"項目":"車輪檔（2只一組）","單位":"組","數量":10.0,"單價":1700.0,"金額":17000.0,"備註":""}]}];
+
+let data = RAW.map((d,i) => ({...d, _id: i}));
+let filtered = [...data];
+let sortCol = '月份', sortDir = 1;
+let expandedRows = new Set();
+
+function fmt(n) { return '$ ' + Math.round(n).toLocaleString('zh-TW'); }
+
+// Init filters
+function initFilters() {
+  const months = [...new Set(data.map(d => d.月份))].sort();
+  const sel = document.getElementById('filterMonth');
+  months.forEach(m => { const o = document.createElement('option'); o.value = m; o.text = m; sel.appendChild(o); });
+}
+
+// Summary cards
+function renderSummary(rows) {
+  const total = rows.reduce((s,d) => s + d.總金額, 0);
+  const vendors = new Set(rows.map(d => d.廠商)).size;
+  const byCompany = {};
+  rows.forEach(d => { byCompany[d.開立公司] = (byCompany[d.開立公司]||0) + d.總金額; });
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="card"><div class="card-label">總請款金額</div><div class="card-value accent">${fmt(total)}</div><div class="card-sub">${rows.length} 筆請款單</div></div>
+    <div class="card"><div class="card-label">廠商數量</div><div class="card-value">${vendors}</div><div class="card-sub">家廠商</div></div>
+    <div class="card"><div class="card-label">信帆</div><div class="card-value green">${fmt(byCompany['信帆']||0)}</div><div class="card-sub">${rows.filter(d=>d.開立公司==='信帆').length} 筆</div></div>
+    <div class="card"><div class="card-label">元上億 / 優美佳</div><div class="card-value" style="font-size:16px">${fmt((byCompany['元上億']||0)+(byCompany['優美佳']||0))}</div><div class="card-sub">${rows.filter(d=>d.開立公司!=='信帆').length} 筆</div></div>
+  `;
+}
+
+// Table
+function renderTable() {
+  const tbody = document.getElementById('tableBody');
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="no-data">無符合條件的資料</td></tr>'; return; }
+  const total = filtered.reduce((s,d) => s + d.總金額, 0);
+  document.getElementById('resultCount').textContent = `共 ${filtered.length} 筆`;
+  document.getElementById('footerTotal').innerHTML = `<span>篩選合計：</span><strong>${fmt(total)}</strong>`;
+
+  let html = '';
+  filtered.forEach(d => {
+    const exp = expandedRows.has(d._id);
+    html += `<tr>
+      <td class="col-month">${d.月份}</td>
+      <td class="col-vendor">${d.廠商}</td>
+      <td class="col-location">${d.施工地點.replace(/\n/g,'<br>')}</td>
+      <td><span class="tag tag-${d.開立公司}">${d.開立公司}</span></td>
+      <td class="col-amount">${fmt(d.總金額)}</td>
+      <td class="col-invoice">${d.發票號碼||'—'}</td>
+      <td><button class="expand-btn" onclick="toggleDetail(${d._id})">${exp ? '▲ 收起' : '▼ 明細'}</button></td>
+    </tr>`;
+    if (exp && d.明細.length) {
+      html += `<tr class="detail-row"><td colspan="7"><div class="detail-inner">
+        <table class="detail-table">
+          <thead><tr><th>項目</th><th>單位</th><th style="text-align:right">數量</th><th style="text-align:right">單價</th><th style="text-align:right">金額</th></tr></thead>
+          <tbody>${d.明細.map(m => `<tr><td>${m.項目}</td><td>${m.單位}</td><td style="text-align:right">${m.數量.toLocaleString()}</td><td style="text-align:right">${m.單價.toLocaleString()}</td><td style="text-align:right;font-weight:700">$${Math.round(m.金額).toLocaleString()}</td></tr>`).join('')}</tbody>
+        </table></div></td></tr>`;
+    }
+  });
+  tbody.innerHTML = html;
+}
+
+function toggleDetail(id) {
+  if (expandedRows.has(id)) expandedRows.delete(id);
+  else expandedRows.add(id);
+  renderTable();
+}
+
+// Sort
+function sortBy(col) {
+  if (sortCol === col) sortDir *= -1;
+  else { sortCol = col; sortDir = 1; }
+  document.querySelectorAll('th').forEach(th => th.classList.remove('sorted'));
+  filtered.sort((a,b) => {
+    const av = a[col], bv = b[col];
+    return typeof av === 'number' ? (av - bv) * sortDir : av.localeCompare(bv) * sortDir;
+  });
+  renderTable();
+}
+
+// Filter
+function applyFilter() {
+  const month = document.getElementById('filterMonth').value;
+  const company = document.getElementById('filterCompany').value;
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+  filtered = data.filter(d => {
+    if (month && d.月份 !== month) return false;
+    if (company && d.開立公司 !== company) return false;
+    if (search && !d.廠商.includes(search) && !d.施工地點.toLowerCase().includes(search) && !d.發票號碼.toLowerCase().includes(search)) return false;
+    return true;
+  });
+  renderSummary(filtered);
+  renderTable();
+  renderStats();
+}
+
+// Stats
+function renderStats() {
+  // By vendor
+  const vendorMap = {};
+  filtered.forEach(d => { vendorMap[d.廠商] = (vendorMap[d.廠商]||0) + d.總金額; });
+  const topVendors = Object.entries(vendorMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const maxV = topVendors[0]?.[1] || 1;
+
+  // By month
+  const monthMap = {};
+  filtered.forEach(d => { monthMap[d.月份] = (monthMap[d.月份]||0) + d.總金額; });
+  const months = Object.entries(monthMap).sort((a,b)=>a[0].localeCompare(b[0]));
+  const maxM = Math.max(...months.map(m=>m[1])) || 1;
+
+  // By company
+  const compMap = {};
+  filtered.forEach(d => { compMap[d.開立公司] = (compMap[d.開立公司]||0) + d.總金額; });
+  const compTotal = Object.values(compMap).reduce((s,v)=>s+v,0) || 1;
+
+  // By item type
+  const itemMap = {};
+  filtered.forEach(d => d.明細.forEach(m => { itemMap[m.項目] = (itemMap[m.項目]||0) + m.金額; }));
+  const topItems = Object.entries(itemMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxI = topItems[0]?.[1] || 1;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card">
+      <h3>各廠商請款金額 Top 8</h3>
+      ${topVendors.map(([v,a])=>`<div class="bar-row"><div class="bar-label" title="${v}">${v}</div><div class="bar-track"><div class="bar-fill" style="width:${(a/maxV*100).toFixed(1)}%"></div></div><div class="bar-val">${fmt(a)}</div></div>`).join('')}
+    </div>
+    <div class="stat-card">
+      <h3>各月份請款總額</h3>
+      ${months.map(([m,a])=>`<div class="month-row"><div style="font-size:12px;font-weight:700;color:var(--ink2)">${m.replace('115年','')}</div><div class="bar-track"><div class="bar-fill" style="width:${(a/maxM*100).toFixed(1)}%;background:var(--green)"></div></div><div style="font-size:12px;font-weight:700;text-align:right">${fmt(a)}</div></div>`).join('')}
+    </div>
+    <div class="stat-card">
+      <h3>開立公司佔比</h3>
+      ${Object.entries(compMap).sort((a,b)=>b[1]-a[1]).map(([c,a])=>`
+        <div class="bar-row">
+          <div class="bar-label"><span class="tag tag-${c}">${c}</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${(a/compTotal*100).toFixed(1)}%;background:${c==='信帆'?'#2563eb':c==='元上億'?'#059669':'#d97706'}"></div></div>
+          <div class="bar-val">${(a/compTotal*100).toFixed(1)}%</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin:-4px 0 8px 108px">${fmt(a)}</div>
+      `).join('')}
+    </div>
+    <div class="stat-card">
+      <h3>工項請款金額 Top 6</h3>
+      ${topItems.map(([item,a])=>`<div class="bar-row"><div class="bar-label" title="${item}">${item}</div><div class="bar-track"><div class="bar-fill" style="width:${(a/maxI*100).toFixed(1)}%;background:#7c3aed"></div></div><div class="bar-val">${fmt(a)}</div></div>`).join('')}
+    </div>
+  `;
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', (i===0&&tab==='list')||(i===1&&tab==='stats')));
+  document.getElementById('listSection').classList.toggle('active', tab==='list');
+  document.getElementById('statsSection').classList.toggle('active', tab==='stats');
+}
+
+// Init
+initFilters();
+renderSummary(data);
+renderTable();
+renderStats();
+</script>
+</body>
+</html>
